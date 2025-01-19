@@ -1,67 +1,33 @@
 const express = require("express");
-const { adminAuth, userAuth } = require("./middlewares/auth");
+const connectDB = require("./config/database");
+const User = require("./models/user");
 const app = express();
 
-app.use("/admin", adminAuth);
-app.use("/user", userAuth);
-
-app.get("/admin/getAllData", (err, req, res, next) => {
+app.post("/signup", async (req, res) => {
+  //Creating a new instance of the user model
+  const user = new User({
+    firstName: "prem",
+    lastName: "kumar",
+    emailId: "premkumarv08@gmail.com",
+    password: "premkumar",
+    age: 27,
+    gender: "Male",
+  });
   try {
-    res.send("User data sent");
-  } catch (err) {
-    res.status(500).send("Somthing went wrong!");
+    await user.save();
+    res.send("User added successfully!");
+  } catch (error) {
+    res.status(400).send("Error saving the user:" + error.message);
   }
 });
 
-app.delete("/admin/deleteUser", (req, res, next) => {
-  res.send("Deleted a user");
-});
-
-app.get(
-  "/user",
-  (req, res, next) => {
-    console.log("1st route");
-    res.send({ firstname: "prem", lastname: "kumar" });
-    next();
-  },
-  [
-    (req, res, next) => {
-      console.log("2nd route");
-      next();
-    },
-    (req, res, next) => {
-      console.log("3rd route");
-      next();
-    },
-  ],
-  (req, res, next) => {
-    console.log("4th route");
-    next();
-  },
-  (req, res) => {
-    console.log("5th route");
-  }
-);
-
-app.post("/user", (req, res) => {
-  res.send("Data added to database successfully");
-});
-
-app.delete("/user", (req, res) => {
-  res.send("Data removed from database successfully");
-});
-
-app.use("/test", (req, res) => {
-  res.send("Hello from test");
-});
-
-app.use("/", (err, req, res, next) => {
-  if (err) {
-    res.status(500).send("Somthing went wrong!");
-  }
-  res.send("Hello from dashboard");
-});
-
-app.listen(3000, () => {
-  console.log("Server started");
-});
+connectDB()
+  .then(() => {
+    console.log("Database connection established");
+    app.listen("3000", () => {
+      console.log("Server is successfully listening to 3000");
+    });
+  })
+  .catch((err) => {
+    console.error("Database cannot be connected!", err);
+  });
