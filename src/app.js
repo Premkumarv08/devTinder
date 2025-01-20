@@ -56,7 +56,7 @@ app.delete('/user', async (req, res) => {
 app.patch('/user', async (req, res) => {
   const {userId, ...data} = req.body;
   try {
-    const user = await User.findByIdAndUpdate(userId, data, {returnDocument: "after"})
+    const user = await User.findByIdAndUpdate(userId, data, {returnDocument: "after", runValidators: true})
     res.send(user)
   } catch (error) {
     res.status(400).send("Error while updating the user:" + error.message);
