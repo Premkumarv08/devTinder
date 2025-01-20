@@ -1,18 +1,46 @@
 const express = require("express");
+const bcrypt = require("bcrypt");
 const connectDB = require("./config/database");
 const User = require("./models/user");
+const { validateSingupData } = require("./utils/validations");
 const app = express();
 
 app.use(express.json());
 
 app.post("/signup", async (req, res) => {
-  //Creating a new instance of the user model
-  const user = new User(req.body);
   try {
+    validateSingupData(req);
+    const { firstName, lastName, emailId, password } = req.body;
+    const passwordHash = await bcrypt.hash(password, 10);
+    console.log("password", passwordHash);
+    //Creating a new instance of the user model
+    const user = new User({
+      firstName,
+      lastName,
+      emailId,
+      password: passwordHash,
+    });
     await user.save();
     res.send("User added successfully!");
   } catch (error) {
     res.status(400).send("Error saving the user:" + error.message);
+  }
+});
+
+app.post("/login", async (req, res) => {
+  try {
+    const { emailId, password } = req.body;
+    const user = await User.findOne({ emailId });
+    if (!user) {
+      throw new Error("Invalid credentials!");
+    }
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      throw new Error("Invalid credentials!");
+    }
+    res.send(user);
+  } catch (error) {
+    res.status(400).send("Error : " + error.message);
   }
 });
 
@@ -30,7 +58,7 @@ app.get("/user", async (req, res) => {
   }
 });
 
-app.get('/feed', async (req, res) => {
+app.get("/feed", async (req, res) => {
   try {
     const users = await User.find({});
     if (users.length === 0) {
@@ -41,37 +69,41 @@ app.get('/feed', async (req, res) => {
   } catch (error) {
     res.status(400).send("Error while fetching the user:" + error.message);
   }
-})
+});
 
-app.delete('/user', async (req, res) => {
+app.delete("/user", async (req, res) => {
   const userId = req.body.userId;
   try {
-    const user = await User.findByIdAndDelete(userId)
-    res.send("User deleted successfully!")
+    const user = await User.findByIdAndDelete(userId);
+    res.send("User deleted successfully!");
   } catch (error) {
     res.status(400).send("Error while deleting the user:" + error.message);
   }
-})
+});
 
-app.patch('/user/:userId', async (req, res) => {
+app.patch("/user/:userId", async (req, res) => {
   const userId = req.params?.userId;
   const data = req.body;
   try {
-    const ALLOWED_UPDATES = ['photoUrl', 'about', 'gender', 'age', 'skills']
-    const isUpdateAllowed = Object.keys(data).every(k => ALLOWED_UPDATES.includes(k))
-    if(!isUpdateAllowed) {
-      throw new Error("Update not allowed!")
+    const ALLOWED_UPDATES = ["photoUrl", "about", "gender", "age", "skills"];
+    const isUpdateAllowed = Object.keys(data).every((k) =>
+      ALLOWED_UPDATES.includes(k)
+    );
+    if (!isUpdateAllowed) {
+      throw new Error("Update not allowed!");
     }
-    if(data?.skills.length > 10) {
+    if (data?.skills.length > 10) {
       throw new Error("Skills cannot be more than 10");
-      
     }
-    const user = await User.findByIdAndUpdate(userId, data, {returnDocument: "after", runValidators: true})
-    res.send(user)
+    const user = await User.findByIdAndUpdate(userId, data, {
+      returnDocument: "after",
+      runValidators: true,
+    });
+    res.send(user);
   } catch (error) {
     res.status(400).send("Error while updating the user :" + error.message);
   }
-})
+});
 
 connectDB()
   .then(() => {
