@@ -6,6 +6,7 @@ const jwt = require("jsonwebtoken");
 const connectDB = require("./config/database");
 const User = require("./models/user");
 const { validateSingupData } = require("./utils/validations");
+const { authenticateUser } = require("./middlewares/auth");
 
 const app = express();
 
@@ -17,7 +18,6 @@ app.post("/signup", async (req, res) => {
     validateSingupData(req);
     const { firstName, lastName, emailId, password } = req.body;
     const passwordHash = await bcrypt.hash(password, 10);
-    console.log("password", passwordHash);
     //Creating a new instance of the user model
     const user = new User({
       firstName,
@@ -28,7 +28,7 @@ app.post("/signup", async (req, res) => {
     await user.save();
     res.send("User added successfully!");
   } catch (error) {
-    res.status(400).send("Error saving the user:" + error.message);
+    res.status(400).send("Error : " + error.message);
   }
 });
 
@@ -43,90 +43,29 @@ app.post("/login", async (req, res) => {
     if (!isPasswordValid) {
       throw new Error("Invalid credentials!");
     }
-    const token = jwt.sign({ userId: user._id }, "PREMKUMAR@123");
-    res.cookie("token", token, { httpOnly: true });
+    const token = jwt.sign({ userId: user._id }, "PREMKUMAR@123", {expiresIn: '1d'});
+    res.cookie("token", token, { httpOnly: true, expires: new Date(Date.now() + 24 * 60 * 60 * 1000) });
     res.send(user);
   } catch (error) {
     res.status(400).send("Error : " + error.message);
   }
 });
 
-app.get("/profile", async (req, res) => {
-  const token = req.cookies?.token;
-  if (!token) {
-    res.status(401).send("Unauthorized request");
-  } else {
-    try {
-      const { userId } = jwt.verify(token, "PREMKUMAR@123");
-      const user = await User.findById(userId);
-      if (!user) {
-        throw new Error("User not found!");
-      }
-      res.send(user);
-    } catch (error) {
-      res.status(400).send("Error : " + error.message);
-    }
-  }
-});
-
-app.get("/user", async (req, res) => {
-  const emailId = req.body.emailId;
+app.get("/profile", authenticateUser, async (req, res) => {
   try {
-    const users = await User.find({ emailId });
-    if (users.length === 0) {
-      res.status(404).send("User not found!");
-    } else {
-      res.send(users);
-    }
-  } catch (error) {
-    res.status(400).send("Error while fetching the user:" + error.message);
-  }
-});
-
-app.get("/feed", async (req, res) => {
-  try {
-    const users = await User.find({});
-    if (users.length === 0) {
-      res.status(404).send("User not found!");
-    } else {
-      res.send(users);
-    }
-  } catch (error) {
-    res.status(400).send("Error while fetching the user:" + error.message);
-  }
-});
-
-app.delete("/user", async (req, res) => {
-  const userId = req.body.userId;
-  try {
-    const user = await User.findByIdAndDelete(userId);
-    res.send("User deleted successfully!");
-  } catch (error) {
-    res.status(400).send("Error while deleting the user:" + error.message);
-  }
-});
-
-app.patch("/user/:userId", async (req, res) => {
-  const userId = req.params?.userId;
-  const data = req.body;
-  try {
-    const ALLOWED_UPDATES = ["photoUrl", "about", "gender", "age", "skills"];
-    const isUpdateAllowed = Object.keys(data).every((k) =>
-      ALLOWED_UPDATES.includes(k)
-    );
-    if (!isUpdateAllowed) {
-      throw new Error("Update not allowed!");
-    }
-    if (data?.skills.length > 10) {
-      throw new Error("Skills cannot be more than 10");
-    }
-    const user = await User.findByIdAndUpdate(userId, data, {
-      returnDocument: "after",
-      runValidators: true,
-    });
+    const user = req.user;
     res.send(user);
   } catch (error) {
-    res.status(400).send("Error while updating the user :" + error.message);
+    res.status(400).send("Error : " + error.message);
+  }
+});
+
+app.post('/sendconnectionrequest', authenticateUser, async (req, res) => {
+  try {
+    const user = req.user;
+    res.send(user.firstName + ' sent a connection request!');
+  } catch (error) {
+    res.status(400).send('Error : ' + error.message);
   }
 });
 
