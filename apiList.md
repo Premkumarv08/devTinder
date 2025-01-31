@@ -11,8 +11,12 @@ profileRouter
 - PATCH /profile/password
 
 connectionRequestRouter
-- POST /request/send/interested/:userId
-- POST /request/send/ignored/:userId
+- POST /request/send/interested/:toUserId
+- POST /request/send/ignored/:toUserId
+// we can have single api to handle both the cases => interested, rejected
+- POST /request/send/:status/:toUserId
+
+
 - POST /request/review/accepted/:requestId
 - POST /request/review/rejected/:requestId
 
